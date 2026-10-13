@@ -62,4 +62,43 @@ describe('SwarmDAGOrchestrator', () => {
 
     assert.strictEqual(orchestrator.totalBountyAllocated(), 5000n);
   });
+
+  it('detects cycles and returns topological resolution order', () => {
+    const orchestrator = new SwarmDAGOrchestrator();
+
+    orchestrator.addTask({
+      id: 'root',
+      name: 'Root Task',
+      assignedAgent: 'Coordinator',
+      dependencies: [],
+      bountyAmountWei: 100n,
+      status: 'pending',
+    });
+    orchestrator.addTask({
+      id: 'child1',
+      name: 'Child Task',
+      assignedAgent: 'Worker',
+      dependencies: ['root'],
+      bountyAmountWei: 200n,
+      status: 'pending',
+    });
+
+    assert.strictEqual(orchestrator.hasCycle(), false);
+    const order = orchestrator.getTopologicalOrder();
+    assert.strictEqual(order[0].id, 'root');
+    assert.strictEqual(order[1].id, 'child1');
+
+    // Add cycle: root depends on child1
+    orchestrator.addTask({
+      id: 'root',
+      name: 'Root Task',
+      assignedAgent: 'Coordinator',
+      dependencies: ['child1'],
+      bountyAmountWei: 100n,
+      status: 'pending',
+    });
+
+    assert.strictEqual(orchestrator.hasCycle(), true);
+    assert.throws(() => orchestrator.getTopologicalOrder(), /Cycle detected in task graph/);
+  });
 });
